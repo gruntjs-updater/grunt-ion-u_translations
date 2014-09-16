@@ -30,22 +30,25 @@ module.exports = function(grunt) {
 
     // Configuration to be run (and then tested).
     ion_u_translations: {
-      default_options: {
+      options: {
+        endpoint: 'https://cs-languageportal-beta.webvariants.de/api/gettranslations',
+      },
+      de_de: {
         options: {
+          locale: 'de_de'
         },
         files: {
-          'tmp/default_options': ['test/fixtures/testing', 'test/fixtures/123']
+          'tmp/de_de.json': ['de_de.json']
         }
       },
-      custom_options: {
+      fr_fr: {
         options: {
-          separator: ': ',
-          punctuation: ' !!!'
+          locale: 'fr_fr'
         },
         files: {
-          'tmp/custom_options': ['test/fixtures/testing', 'test/fixtures/123']
+          'tmp/fr_fr.json': ['fr_fr.json']
         }
-      }
+      },
     },
 
     // Unit tests.

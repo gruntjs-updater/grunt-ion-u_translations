@@ -7,44 +7,78 @@
  */
 
 'use strict';
+// for langfile in `find $INSTALL_DIR/lang -iname \*.json`; do
+//     compile_languagefiles $langfile $LANGUAGE_PORTAL_URL
+// done
+
+// compile_languagefiles() {
+//     # locale = stuff before the first dot (de_de.json => de_de)
+//     local locale=$(basename $1 | sed 's/\(.*\)\..*/\1/')
+
+//     # remove whitespace from JSON
+//     local data=$(cat $1 | tr -d "\n" | tr -d "\t" | tr -s " " " ")
+
+//     echo "> $locale"
+//     # curl -sL --data-urlencode "json@-" -d "locale=${locale}" $2 <<< $data
+//     local status=$(curl -sL -w "%{http_code}" --data-urlencode "json@-" -d "locale=${locale}" --output $1 $2 <<< $data)
+//   if [ "$status" != "200" ]; then
+//     echo "Getting Language Data for $locale failed with status: $status ."
+//     exit 1
+//   fi
+// }
 
 module.exports = function(grunt) {
-
-  // Please see the Grunt documentation for more information regarding task
-  // creation: http://gruntjs.com/creating-tasks
+  // lint files
+  // get translations
+  // write results to dest
 
   grunt.registerMultiTask('ion_u_translations', 'Fetch translations from portal', function() {
     // Merge task-specific and/or target-specific options with these defaults.
+    var request = require("request");
+    var terminate = this.async();
     var options = this.options({
-      punctuation: '.',
-      separator: ', '
+      endpoint: 'https://cs-languageportal-beta.webvariants.de/api/gettranslations'
     });
 
-    // Iterate over all specified file groups.
-    this.files.forEach(function(f) {
-      // Concat specified files.
-      var src = f.src.filter(function(filepath) {
-        // Warn on and remove invalid source files (if nonull was set).
-        if (!grunt.file.exists(filepath)) {
-          grunt.log.warn('Source file "' + filepath + '" not found.');
-          return false;
-        } else {
-          return true;
+    if (typeof(options.locale) === 'undefined') {
+      grunt.fail.fatal('no locale present in task options');
+    }
+
+    var translations = function (locale, sourceFile, destFile, success) {
+      request.post({
+        url: options.endpoint,
+        form: {
+          locale: locale,
+          json: JSON.stringify(grunt.file.readJSON(sourceFile))
         }
-      }).map(function(filepath) {
-        // Read file source.
-        return grunt.file.read(filepath);
-      }).join(grunt.util.normalizelf(options.separator));
+      }, function(err, res, body) {
+        if (err) grunt.fail.fatal(err);
 
-      // Handle options.
-      src += options.punctuation;
+        if (+res.statusCode === 200) {
+          grunt.log.ok('got data for '+options.locale);
+          grunt.file.write(destFile, body);
+          grunt.log.ok('wrote contents to destination', destFile);
+          return success();
+        }
 
-      // Write the destination file.
-      grunt.file.write(f.dest, src);
+        console.log(res.statusCode);
+        grunt.fail.fatal('Request to language portal failed');
+      });
+    };
 
-      // Print a success message.
-      grunt.log.writeln('File "' + f.dest + '" created.');
+    var jobs = 1;
+    var done = function () {
+      jobs--;
+      if (jobs === 0) terminate();
+    };
+
+    this.files.forEach(function (file) {
+      var contents;
+      //@FIXME multisource support
+      jobs++;
+      translations(options.locale, file.src.shift(), file.dest, done);
     });
+    done();
   });
 
 };
