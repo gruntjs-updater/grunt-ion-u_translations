@@ -35,9 +35,14 @@ module.exports = function(grunt) {
   grunt.registerMultiTask('ion_u_translations', 'Fetch translations from portal', function() {
     // Merge task-specific and/or target-specific options with these defaults.
     var request = require("request");
+    var jsonlint = require("jsonlint");
+
     var terminate = this.async();
     var options = this.options({
-      endpoint: 'https://cs-languageportal-beta.webvariants.de/api/gettranslations'
+      endpoint: 'https://cs-languageportal-beta.webvariants.de/api/gettranslations',
+      lintinput: true,
+      lintoutput: true,
+      lint: true
     });
 
     if (typeof(options.locale) === 'undefined') {
@@ -45,17 +50,28 @@ module.exports = function(grunt) {
     }
 
     var translations = function (locale, sourceFile, destFile, success) {
+      var contents = JSON.stringify(grunt.file.readJSON(sourceFile));
+
+      if (options.lint || options.lintinput) {
+        jsonlint.parse(contents);
+      }
+
       request.post({
         url: options.endpoint,
         form: {
           locale: locale,
-          json: JSON.stringify(grunt.file.readJSON(sourceFile))
+          json: contents
         }
       }, function(err, res, body) {
         if (err) grunt.fail.fatal(err);
 
         if (+res.statusCode === 200) {
           grunt.log.ok('got data for '+options.locale);
+
+          if (options.lint || options.lintoutput) {
+            jsonlint.parse(body);
+          }
+
           grunt.file.write(destFile, body);
           grunt.log.ok('wrote contents to destination', destFile);
           return success();
